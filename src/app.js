@@ -14,6 +14,11 @@ const fetchPath = fileURLToPath(
 app.use((req, res, next) => {
   res.setHeader("X-Author", AUTHOR);
   res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "x-test,ngrok-skip-browser-warning,Content-Type,Accept,Access-Control-Allow-Headers",
+  );
   next();
 });
 
@@ -49,8 +54,18 @@ app.get("/promise/", (req, res) => {
 });
 
 // GET /fetch/
-app.get("/fetch", (req, res) => {
+app.get("/fetch/", (req, res) => {
   res.status(200).sendFile(fetchPath);
+});
+
+// Все методы /result4/: тело сохраняется как текст независимо от Content-Type.
+app.all("/result4/", express.text({ type: () => true }), (req, res) => {
+  const response = {
+    message: AUTHOR,
+    "x-result": req.get("x-test") ?? "",
+    "x-body": req.body ?? "",
+  };
+  res.status(200).json(response);
 });
 
 app.listen(PORT, () => {
