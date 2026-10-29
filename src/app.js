@@ -43,7 +43,7 @@ app.get("/promise/", (req, res) => {
     .status(200)
     .send(
       "function task(x) {\n" +
-        '\treturn new Promise((res, rej) => (x < 18 ? rej("no") : res("yes")));\n' +
+        '\treturn new Promise((res, rej) => (x < 18 ? res("yes") : rej("no")));\n' +
         "}",
     );
 });
