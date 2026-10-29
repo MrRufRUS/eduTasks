@@ -15,13 +15,13 @@ concurrency:
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@latest
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@latest
         with:
           node-version: '26'
 
