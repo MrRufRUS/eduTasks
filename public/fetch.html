@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fetch</title>
+</head>
+<body>
+    <input type="text" id="inp">
+    <button id="bt">Button</button>
+</body>
+<script>
+    const resourceInput = document.querySelector("#inp");
+    const fetchButton = document.querySelector("#bt");
+
+    fetchButton.addEventListener("click", async () => {
+        const response = await fetch(resourceInput.value);
+        const text = await response.text();
+        resourceInput.value = text;
+    });
+</script>
+</html>

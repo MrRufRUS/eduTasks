@@ -1,9 +1,14 @@
 import express from "express";
+import { fileURLToPath } from "node:url";
 
 const app = express();
 const PORT = 3000;
 
 const AUTHOR = "7c540331-e84d-451a-bd11-4b1c367bb66d";
+
+const fetchPath = fileURLToPath(
+  new URL("../public/fetch.html", import.meta.url),
+);
 
 // Глобальные HTTP-заголовки
 app.use((req, res, next) => {
@@ -34,11 +39,18 @@ app.get("/sample/", (req, res) => {
 app.get("/promise/", (req, res) => {
   res.type("text/plain");
   res.setHeader("Content-Disposition", "inline");
-  res.status(200).send(
-    'function task(x) {\n' +
+  res
+    .status(200)
+    .send(
+      "function task(x) {\n" +
         '\treturn new Promise((res, rej) => (x < 18 ? rej("no") : res("yes")));\n' +
-    '}',
-  );
+        "}",
+    );
+});
+
+// GET /fetch/
+app.get("/fetch", (req, res) => {
+  res.status(200).sendFile(fetchPath);
 });
 
 app.listen(PORT, () => {
