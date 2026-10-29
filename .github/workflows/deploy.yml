@@ -1,0 +1,75 @@
+name: Build, check and deploy
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: edutasks-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t "edutasks:$GITHUB_SHA" .
+
+      - name: Check application in container
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run -d --name smoke -p 127.0.0.1:3000:3000 "edutasks:$GITHUB_SHA"
+          trap 'docker logs smoke; docker rm -f smoke' EXIT
+          curl --fail --retry 15 --retry-connrefused --retry-delay 1 http://127.0.0.1:3000/
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          for (const path of ['/', '/login/', '/sample/', '/promise/']) {
+            const response = await fetch(`http://127.0.0.1:3000${path}`);
+            assert.equal(response.status, 200);
+            assert.match(response.headers.get('content-type'), /^text\/plain/);
+            const body = await response.text();
+            assert.ok(body.length > 0);
+            if (path === '/promise/') {
+              assert.equal(response.headers.get('content-disposition'), 'inline');
+              const task = new Function(`${body}; return task;`)();
+              assert.equal(await task(18), 'yes');
+              await assert.rejects(task(17), reason => reason === 'no');
+            }
+          }
+          NODE
+
+      - name: Deploy over SSH
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+        shell: bash
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT || '22' }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          APP_PORT: ${{ vars.APP_PORT || '3000' }}
+        run: |
+          set -euo pipefail
+          : "${SSH_HOST:?Set SSH_HOST secret}"
+          : "${SSH_USER:?Set SSH_USER secret}"
+          : "${SSH_PRIVATE_KEY:?Set SSH_PRIVATE_KEY secret}"
+          : "${SSH_KNOWN_HOSTS:?Set SSH_KNOWN_HOSTS secret}"
+          [[ "$APP_PORT" =~ ^[0-9]+$ ]] && (( APP_PORT >= 1 && APP_PORT <= 65535 ))
+          [[ "$SSH_PORT" =~ ^[0-9]+$ ]]
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/deploy_key ~/.ssh/known_hosts
+          trap 'rm -f ~/.ssh/deploy_key' EXIT
+          ssh_options=(-i ~/.ssh/deploy_key -p "$SSH_PORT" -o IdentitiesOnly=yes -o PreferredAuthentications=publickey -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15)
+          docker save "edutasks:$GITHUB_SHA" | gzip | ssh "${ssh_options[@]}" "$SSH_USER@$SSH_HOST" 'gzip -dc | docker load'
+          ssh "${ssh_options[@]}" "$SSH_USER@$SSH_HOST" "bash -s -- 'edutasks:$GITHUB_SHA' '$APP_PORT'" < scripts/deploy.sh
