@@ -34,6 +34,20 @@ app.get("/login/", (req, res) => {
   res.status(200).send(AUTHOR);
 });
 
+app.get("/hour/", (req, res) => {
+  const date = new Date();
+
+  res.type("text/plain");
+  res.status(200).send(
+    new Intl.DateTimeFormat("en-GB", {
+      timeStyle: "short",
+      timeZone: "Europe/Moscow",
+    })
+      .format(date)
+      .slice(0, 2),
+  );
+});
+
 // GET /sample/
 app.get("/sample/", (req, res) => {
   res.type("text/plain");
