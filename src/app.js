@@ -4,7 +4,8 @@ import { fileURLToPath } from "node:url";
 const app = express();
 const PORT = 3000;
 
-const AUTHOR = "7c540331-e84d-451a-bd11-4b1c367bb66d";
+// const AUTHOR = "7c540331-e84d-451a-bd11-4b1c367bb66d";
+const AUTHOR = "mrrufrus"
 
 const fetchPath = fileURLToPath(
   new URL("../public/fetch.html", import.meta.url),
